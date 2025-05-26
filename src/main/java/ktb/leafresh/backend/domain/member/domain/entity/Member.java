@@ -2,9 +2,10 @@ package ktb.leafresh.backend.domain.member.domain.entity;
 
 import ktb.leafresh.backend.domain.challenge.group.domain.entity.GroupChallenge;
 import ktb.leafresh.backend.domain.challenge.group.domain.entity.GroupChallengeParticipantRecord;
-import ktb.leafresh.backend.domain.community.comment.domain.entity.Comment;
-import ktb.leafresh.backend.domain.community.like.domain.entity.Like;
-import ktb.leafresh.backend.domain.community.post.domain.entity.Post;
+import ktb.leafresh.backend.domain.store.order.domain.entity.PurchaseFailureLog;
+import ktb.leafresh.backend.domain.store.order.domain.entity.PurchaseIdempotencyKey;
+import ktb.leafresh.backend.domain.verification.domain.entity.Comment;
+import ktb.leafresh.backend.domain.verification.domain.entity.Like;
 import ktb.leafresh.backend.domain.feedback.domain.entity.Feedback;
 import ktb.leafresh.backend.domain.member.domain.entity.enums.LoginType;
 import ktb.leafresh.backend.domain.member.domain.entity.enums.Role;
@@ -14,6 +15,7 @@ import ktb.leafresh.backend.domain.auth.domain.entity.OAuth;
 import ktb.leafresh.backend.domain.notification.domain.entity.Notification;
 import ktb.leafresh.backend.domain.store.order.domain.entity.ProductPurchase;
 import ktb.leafresh.backend.domain.verification.domain.entity.PersonalChallengeVerification;
+import ktb.leafresh.backend.domain.verification.domain.entity.VerificationFailureLog;
 import ktb.leafresh.backend.global.common.entity.BaseEntity;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -61,9 +63,6 @@ public class Member extends BaseEntity {
     private List<PersonalChallengeVerification> personalChallengeVerifications = new ArrayList<>();
 
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
-    private List<Post> posts = new ArrayList<>();
-
-    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
     private List<Comment> comments = new ArrayList<>();
 
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
@@ -76,7 +75,16 @@ public class Member extends BaseEntity {
     private List<ProductPurchase> productPurchases = new ArrayList<>();
 
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
+    private List<PurchaseIdempotencyKey> purchaseIdempotencyKeys = new ArrayList<>();
+
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
+    private List<PurchaseFailureLog> purchaseFailureLogs = new ArrayList<>();
+
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
     private List<Feedback> feedbacks = new ArrayList<>();
+
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
+    private List<VerificationFailureLog> verificationFailureLogs = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -137,5 +145,9 @@ public class Member extends BaseEntity {
 
     public void updateImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public void updateCurrentLeafPoints(int newPoints) {
+        this.currentLeafPoints = newPoints;
     }
 }

@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
 import ktb.leafresh.backend.domain.auth.application.service.oauth.OAuthLoginService;
 import ktb.leafresh.backend.domain.auth.application.service.oauth.OAuthReissueTokenService;
-import ktb.leafresh.backend.domain.auth.domain.entity.enums.OAuthProvider;
 import ktb.leafresh.backend.domain.auth.presentation.dto.response.OAuthLoginResponseDto;
 import ktb.leafresh.backend.domain.auth.presentation.dto.response.OAuthRedirectUrlResponseDto;
 import ktb.leafresh.backend.domain.auth.presentation.dto.response.OAuthTokenResponseDto;
@@ -14,14 +13,13 @@ import ktb.leafresh.backend.global.exception.MemberErrorCode;
 import ktb.leafresh.backend.global.response.ApiResponse;
 import ktb.leafresh.backend.global.response.ApiResponseConstants;
 import ktb.leafresh.backend.global.security.AuthCookieProvider;
+import ktb.leafresh.backend.global.security.JwtProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.net.URI;
 
 @Slf4j
 @RestController
@@ -32,21 +30,46 @@ public class OAuthController {
     private final OAuthLoginService oAuthLoginService;
     private final OAuthReissueTokenService oAuthReissueTokenService;
     private final AuthCookieProvider authCookieProvider;
+    private final JwtProvider jwtProvider;
 
     @GetMapping("/success")
     public ResponseEntity<String> oauthSuccessPage() {
         return ResponseEntity.ok("<h1>카카오 로그인 성공</h1><p>쿠키 확인은 개발자 도구에서</p>");
     }
 
+//    @Operation(summary = "카카오 로그인 리다이렉트", description = "카카오 인증 페이지로 리다이렉트합니다.")
+//    @ApiResponseConstants.RedirectResponses
+//    @GetMapping("/{provider}")
+//    public ResponseEntity<ApiResponse<OAuthRedirectUrlResponseDto>> redirectToProvider(@PathVariable String provider) {
+//        OAuthProvider providerEnum = OAuthProvider.from(provider);
+//        String redirectUrl = oAuthLoginService.getRedirectUrl();
+//
+//        OAuthRedirectUrlResponseDto responseData = new OAuthRedirectUrlResponseDto(redirectUrl);
+//        return ResponseEntity.ok(ApiResponse.success("소셜 로그인 URL을 반환합니다.", responseData));
+//    }
+
     @Operation(summary = "카카오 로그인 리다이렉트", description = "카카오 인증 페이지로 리다이렉트합니다.")
     @ApiResponseConstants.RedirectResponses
     @GetMapping("/{provider}")
-    public ResponseEntity<ApiResponse<OAuthRedirectUrlResponseDto>> redirectToProvider(@PathVariable String provider) {
-        OAuthProvider providerEnum = OAuthProvider.from(provider);
-        String redirectUrl = oAuthLoginService.getRedirectUrl();
+    public ResponseEntity<ApiResponse<OAuthRedirectUrlResponseDto>> redirectToProvider(
+            @PathVariable String provider,
+            @RequestParam(required = false) String origin
+    ) {
+        if (origin == null || origin.isBlank()) {
+            origin = "https://leafresh.app"; // fallback 도메인
+        }
 
-        OAuthRedirectUrlResponseDto responseData = new OAuthRedirectUrlResponseDto(redirectUrl);
-        return ResponseEntity.ok(ApiResponse.success("소셜 로그인 URL을 반환합니다.", responseData));
+        String state = jwtProvider.generateStateToken(origin);
+        String redirectUrl = "https://kauth.kakao.com/oauth/authorize" +
+                "?client_id=" + oAuthLoginService.getClientId() +
+                "&redirect_uri=" + origin + "/member/" + provider + "/callback" +
+                "&response_type=code" +
+                "&state=" + state;
+
+        return ResponseEntity.ok(ApiResponse.success(
+                "소셜 로그인 URL을 반환합니다.",
+                new OAuthRedirectUrlResponseDto(redirectUrl)
+        ));
     }
 
     @Operation(summary = "카카오 로그인 콜백", description = "인가 코드를 받아 JWT를 발급하고 쿠키에 저장하며 사용자 정보를 반환합니다.")
@@ -57,13 +80,17 @@ public class OAuthController {
     public ResponseEntity<ApiResponse<OAuthLoginResponseDto>> kakaoCallback(
             @PathVariable String provider,
             @RequestParam String code,
+            @RequestParam String state,
             HttpServletResponse response
     ) {
         log.info("인가 코드 수신 - code={}", code);
 
-        OAuthProvider providerEnum = OAuthProvider.from(provider);
+        String origin = jwtProvider.parseStateToken(state);
+        log.info("복호화된 origin: {}", origin);
 
-        OAuthTokenResponseDto tokenDto = oAuthLoginService.loginWithKakao(code);
+        String redirectUri = origin + "/member/kakao/callback";
+        OAuthTokenResponseDto tokenDto = oAuthLoginService.loginWithKakao(code, redirectUri);
+
         log.info("카카오 로그인 토큰 발급 완료 - accessToken={}, refreshToken={}",
                 tokenDto.accessToken(), tokenDto.refreshToken());
 
@@ -103,7 +130,7 @@ public class OAuthController {
             OAuthTokenResponseDto newTokenDto = oAuthReissueTokenService.reissue(refreshToken);
 
             response.addHeader(HttpHeaders.SET_COOKIE,
-                    authCookieProvider.createAccessTokenCookie(newTokenDto.accessToken(), newTokenDto.accessTokenExpiresIn()).toString());
+                    authCookieProvider.createAccessTokenCookie(newTokenDto.accessToken()).toString());
 
             return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
 
@@ -147,7 +174,7 @@ public class OAuthController {
 
     private void addLoginCookies(HttpServletResponse response, OAuthTokenResponseDto tokenDto) {
         response.addHeader(HttpHeaders.SET_COOKIE,
-                authCookieProvider.createAccessTokenCookie(tokenDto.accessToken(), tokenDto.accessTokenExpiresIn()).toString());
+                authCookieProvider.createAccessTokenCookie(tokenDto.accessToken()).toString());
         response.addHeader(HttpHeaders.SET_COOKIE,
                 authCookieProvider.createRefreshTokenCookie(tokenDto.refreshToken()).toString());
     }

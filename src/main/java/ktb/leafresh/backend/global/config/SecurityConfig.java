@@ -62,6 +62,10 @@ public class SecurityConfig {
                         // images
                         .requestMatchers("/s3/images/presigned-url").permitAll()
 
+                        // 메인 페이지
+                        .requestMatchers("/api/leaves/count").permitAll()
+                        .requestMatchers("/api/challenges/verifications/count").permitAll()
+
                         // 테스트 컨트롤러용 허용 경로 추가
                         .requestMatchers("/spring/**").permitAll()
 
@@ -69,6 +73,7 @@ public class SecurityConfig {
                         .requestMatchers("/oauth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/members/nickname").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/members").permitAll()
+                        .requestMatchers("/member/kakao/callback").permitAll()
 
                         // 단체 챌린지
                         .requestMatchers(HttpMethod.GET, "/api/challenges/group/categories").permitAll()
@@ -76,6 +81,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/challenges/group/{challengeId:\\d+}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/challenges/events").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/challenges/group/{challengeId:\\d+}/verifications").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/challenges/group/{challengeId:\\d+}/verifications/{verificationId:\\d+}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/challenges/group/verifications").permitAll()
+
+                        // 인증 피드
+                        .requestMatchers(HttpMethod.GET, "/api/challenges/group/{challengeId:\\d+}/verifications/{verificationId:\\d+}/comments").permitAll()
 
                         // 그 외 단체 챌린지 API는 인증 필요
                         .requestMatchers("/api/challenges/group/**").authenticated()
@@ -85,7 +95,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/challenges/personal/{challengeId:\\d+}").permitAll()
 
                         // 그 외 개인 챌린지 API는 인증 필요
-                        .requestMatchers("/api/chalglenges/personal/**").authenticated()
+                        .requestMatchers("/api/challenges/personal/**").authenticated()
 
                         // AI로부터 챌린지 인증 결과 받는 API
                         .requestMatchers(HttpMethod.POST, "/api/verifications/**").permitAll()
@@ -93,6 +103,15 @@ public class SecurityConfig {
                         // 챗봇
                         .requestMatchers(HttpMethod.POST, "/api/chatbot/recommendation/base-info").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/chatbot/recommendation/free-text").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/chatbot/recommendation/base-info").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/chatbot/recommendation/free-text").permitAll()
+
+                        // 피드백
+                        .requestMatchers(HttpMethod.POST, "/api/members/feedback/result").permitAll()
+
+                        // 상점
+                        .requestMatchers(HttpMethod.GET, "/api/store/products/timedeals").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/store/products").permitAll()
 
                         // Swagger/OpenAPI
                         .requestMatchers(

@@ -2,27 +2,25 @@ package ktb.leafresh.backend.domain.chatbot.infrastructure.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ktb.leafresh.backend.domain.chatbot.infrastructure.dto.request.AiChatbotFreeTextRequestDto;
-import ktb.leafresh.backend.domain.chatbot.infrastructure.dto.response.AiChatbotFreeTextApiResponseDto;
-import ktb.leafresh.backend.domain.chatbot.infrastructure.dto.response.AiChatbotFreeTextResponseDto;
+import ktb.leafresh.backend.domain.chatbot.infrastructure.dto.response.AiChatbotApiResponseDto;
+import ktb.leafresh.backend.domain.chatbot.infrastructure.dto.response.AiChatbotResponseDto;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Component
-@Profile("!local")
+@Profile({"bigbang-prod", "docker-prod"})
 public class HttpAiChatbotFreeTextClient implements AiChatbotFreeTextClient {
 
     private final WebClient aiServerWebClient;
 
-    public HttpAiChatbotFreeTextClient(
-            @Qualifier("aiServerWebClient") WebClient aiServerWebClient
-    ) {
+    public HttpAiChatbotFreeTextClient(@Qualifier("textAiWebClient") WebClient aiServerWebClient) {
         this.aiServerWebClient = aiServerWebClient;
     }
 
     @Override
-    public AiChatbotFreeTextResponseDto getRecommendation(AiChatbotFreeTextRequestDto requestDto) {
+    public AiChatbotResponseDto getRecommendation(AiChatbotFreeTextRequestDto requestDto) {
         String rawJson = aiServerWebClient.post()
                 .uri("/ai/chatbot/recommendation/free-text")
                 .bodyValue(requestDto)
@@ -34,8 +32,8 @@ public class HttpAiChatbotFreeTextClient implements AiChatbotFreeTextClient {
 
         try {
             // 전용 Wrapper DTO로 파싱
-            AiChatbotFreeTextApiResponseDto parsed =
-                    new ObjectMapper().readValue(rawJson, AiChatbotFreeTextApiResponseDto.class);
+            AiChatbotApiResponseDto parsed =
+                    new ObjectMapper().readValue(rawJson, AiChatbotApiResponseDto.class);
             return parsed.data();
         } catch (Exception e) {
             throw new RuntimeException("AI 응답 파싱 실패: " + e.getMessage(), e);

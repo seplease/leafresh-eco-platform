@@ -8,7 +8,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 @Configuration
 public class GcsConfig {
@@ -21,8 +24,16 @@ public class GcsConfig {
 
     @Bean
     public Storage storage() throws IOException {
-        GoogleCredentials credentials = GoogleCredentials
-                .fromStream(new ClassPathResource(credentialsPath).getInputStream());
+        InputStream credentialsInputStream;
+
+        File credentialsFile = new File(credentialsPath);
+        if (credentialsFile.exists()) {
+            credentialsInputStream = new FileInputStream(credentialsFile);
+        } else {
+            credentialsInputStream = new ClassPathResource(credentialsPath).getInputStream();
+        }
+
+        GoogleCredentials credentials = GoogleCredentials.fromStream(credentialsInputStream);
 
         return StorageOptions.newBuilder()
                 .setProjectId(projectId)

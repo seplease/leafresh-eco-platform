@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class JwtProvider {
 
     private static final String AUTHORITIES_KEY = "auth";
-    private static final String BEARER_TYPE = "Bearer";
+//    private static final String BEARER_TYPE = "Bearer";
     private static final long ACCESS_TOKEN_EXPIRE_TIME = 1000 * 60 * 30; // 30분
     private static final long REFRESH_TOKEN_EXPIRE_TIME = 1000 * 60 * 60 * 24 * 7; // 7일
 
@@ -30,32 +30,12 @@ public class JwtProvider {
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String getSubject(String token) {
-        return parseClaims(token).getSubject();
-    }
-
     public long getExpiration(String token) {
         try {
             return parseClaims(token).getExpiration().getTime();
         } catch (ExpiredJwtException e) {
             return e.getClaims().getExpiration().getTime();
         }
-    }
-
-    public boolean validateToken(String token) {
-        try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
-            return true;
-        } catch (io.jsonwebtoken.security.SecurityException | MalformedJwtException e) {
-            log.warn("잘못된 JWT 서명입니다.");
-        } catch (ExpiredJwtException e) {
-            log.warn("만료된 JWT 토큰입니다.");
-        } catch (UnsupportedJwtException e) {
-            log.warn("지원되지 않는 JWT 토큰입니다.");
-        } catch (IllegalArgumentException e) {
-            log.warn("JWT 토큰이 잘못되었습니다.");
-        }
-        return false;
     }
 
     public TokenDto generateTokenDto(Long memberId, Collection<? extends GrantedAuthority> authorities) {
@@ -83,7 +63,7 @@ public class JwtProvider {
                 .compact();
 
         return TokenDto.builder()
-                .grantType(BEARER_TYPE)
+//                .grantType(BEARER_TYPE)
                 .accessToken(accessToken)
                 .accessTokenExpiresIn(accessTokenExpiresAt.getTime())
                 .refreshToken(refreshToken)
@@ -93,5 +73,27 @@ public class JwtProvider {
     private Claims parseClaims(String token) {
         return Jwts.parserBuilder().setSigningKey(key).build()
                 .parseClaimsJws(token).getBody();
+    }
+
+    // OAuth 인가 요청 시 state JWT 생성
+    public String generateStateToken(String origin) {
+        return Jwts.builder()
+                .setSubject("oauth_state")
+                .claim("origin", origin)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 3)) // 3분 유효
+                .signWith(key, SignatureAlgorithm.HS512)
+                .compact();
+    }
+
+    // 콜백 시 state JWT 복호화
+    public String parseStateToken(String stateToken) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(stateToken)
+                .getBody();
+
+        return claims.get("origin", String.class);
     }
 }
