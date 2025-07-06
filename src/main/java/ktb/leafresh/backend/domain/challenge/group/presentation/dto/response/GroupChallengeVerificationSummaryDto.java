@@ -4,6 +4,9 @@ import ktb.leafresh.backend.domain.verification.domain.entity.GroupChallengeVeri
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.Map;
 
 @Builder
 public record GroupChallengeVerificationSummaryDto(
@@ -12,21 +15,49 @@ public record GroupChallengeVerificationSummaryDto(
         String profileImageUrl,
         String verificationImageUrl,
         String description,
-        LocalDateTime createdAt
+        String category,
+        Counts counts,
+        OffsetDateTime createdAt,
+        Boolean isLiked
 ) {
-    public static GroupChallengeVerificationSummaryDto from(GroupChallengeVerification verification) {
+    @Builder
+    public record Counts(
+            int view,
+            int like,
+            int comment
+    ) {}
+
+    public static GroupChallengeVerificationSummaryDto from(
+            GroupChallengeVerification verification,
+            Map<Object, Object> cachedStats,
+            boolean isLiked
+    ) {
         var member = verification.getParticipantRecord().getMember();
+        var challenge = verification.getParticipantRecord().getGroupChallenge();
+
         return GroupChallengeVerificationSummaryDto.builder()
                 .id(verification.getId())
                 .nickname(member.getNickname())
                 .profileImageUrl(member.getImageUrl())
                 .verificationImageUrl(verification.getImageUrl())
                 .description(verification.getContent())
-                .createdAt(verification.getCreatedAt())
+                .category(challenge.getCategory().getName())
+                .counts(new Counts(
+                        parseCount(cachedStats, "viewCount", verification.getViewCount()),
+                        parseCount(cachedStats, "likeCount", verification.getLikeCount()),
+                        parseCount(cachedStats, "commentCount", verification.getCommentCount())
+                ))
+                .createdAt(verification.getCreatedAt().atOffset(ZoneOffset.UTC))
+                .isLiked(isLiked)
                 .build();
     }
 
-    public LocalDateTime createdAt() {
-        return this.createdAt;
+    private static int parseCount(Map<Object, Object> map, String key, int fallback) {
+        if (map == null || !map.containsKey(key)) return fallback;
+        try {
+            return Integer.parseInt(map.get(key).toString());
+        } catch (Exception e) {
+            return fallback;
+        }
     }
 }

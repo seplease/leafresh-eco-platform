@@ -15,18 +15,22 @@ public class AuthCookieProvider {
     @Value("${cookie.secure}")
     private boolean secure;
 
-    @Value("${cookie.samesite:Strict}") // 기본은 Strict
+    @Value("${cookie.samesite:Strict}")
     private String sameSite;
+
+    @Value("${cookie.domain}")
+    private String domain;
 
     @PostConstruct
     public void init() {
-        log.info("[쿠키설정] secure={}, sameSite={}", secure, sameSite);
+        log.info("[쿠키설정] secure={}, sameSite={}, domain={}", secure, sameSite, domain);
     }
 
     public ResponseCookie createCookie(String name, String value, Duration maxAge) {
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
                 .httpOnly(true)
                 .secure(secure)
+                .domain(domain)
                 .path("/")
                 .sameSite(sameSite)
                 .maxAge(maxAge);
@@ -38,14 +42,15 @@ public class AuthCookieProvider {
         return ResponseCookie.from(name, "")
                 .httpOnly(true)
                 .secure(secure)
+                .domain(domain)
                 .path("/")
                 .sameSite(sameSite)
                 .maxAge(0)
                 .build();
     }
 
-    public ResponseCookie createAccessTokenCookie(String token, long expiresInMillis) {
-        return createCookie("accessToken", token, Duration.ofMillis(expiresInMillis));
+    public ResponseCookie createAccessTokenCookie(String token) {
+        return createCookie("accessToken", token, Duration.ofMinutes(30));
     }
 
     public ResponseCookie createRefreshTokenCookie(String token) {

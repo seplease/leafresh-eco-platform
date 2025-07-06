@@ -10,6 +10,7 @@ import ktb.leafresh.backend.domain.member.application.service.RewardGrantService
 import ktb.leafresh.backend.domain.member.domain.entity.Member;
 import ktb.leafresh.backend.domain.member.infrastructure.repository.MemberRepository;
 import ktb.leafresh.backend.domain.member.infrastructure.repository.RefreshTokenRepository;
+import ktb.leafresh.backend.global.config.SecurityProperties;
 import ktb.leafresh.backend.global.exception.GlobalErrorCode;
 import ktb.leafresh.backend.global.exception.MemberErrorCode;
 import ktb.leafresh.backend.global.security.*;
@@ -39,10 +40,6 @@ public class OAuthLoginService {
     @Value("${kakao.client-id}")
     private String clientId;
 
-    @Getter
-    @Value("${kakao.redirect-uri}")
-    private String redirectUri;
-
     private final OAuthKakaoService oAuthKakaoService;
     private final RewardGrantService rewardGrantService;
     private final JwtLogoutService jwtLogoutService;
@@ -52,18 +49,32 @@ public class OAuthLoginService {
     private final MemberRepository memberRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final AuthCookieProvider authCookieProvider;
+    private final SecurityProperties securityProperties;
 
-    public String getRedirectUrl() {
+    public String getRedirectUrl(String origin) {
+        if (origin == null || origin.isBlank()) {
+            origin = "https://leafresh.app";
+        }
+
+        if (!securityProperties.getAllowedOrigins().contains(origin)) {
+            log.warn("허용되지 않은 origin 요청: {}", origin);
+            throw new CustomException(GlobalErrorCode.INVALID_ORIGIN);
+        }
+
+        String encodedRedirectUri = origin + "/member/kakao/callback";
+
         return "https://kauth.kakao.com/oauth/authorize" +
                 "?client_id=" + clientId +
-                "&redirect_uri=" + redirectUri +
+                "&redirect_uri=" + encodedRedirectUri +
                 "&response_type=code";
     }
 
     @Transactional
-    public OAuthTokenResponseDto loginWithKakao(String authorizationCode) {
+    public OAuthTokenResponseDto loginWithKakao(String authorizationCode, String redirectUri) {
+        log.info("[OAuthLoginService] 카카오 로그인 시작 - code={}, redirectUri={}", authorizationCode, redirectUri);
+
         try {
-            OAuthUserInfoDto userInfo = oAuthKakaoService.getUserInfo(authorizationCode);
+            OAuthUserInfoDto userInfo = oAuthKakaoService.getUserInfo(authorizationCode, redirectUri);
             Optional<Member> optionalMember = memberRepository.findByEmail(userInfo.getEmail());
 
             if (optionalMember.isPresent()) {
@@ -93,7 +104,7 @@ public class OAuthLoginService {
     }
 
     public ResponseCookie createAccessTokenCookie(String accessToken, Long expiresIn) {
-        return authCookieProvider.createAccessTokenCookie(accessToken, expiresIn);
+        return authCookieProvider.createAccessTokenCookie(accessToken);
     }
 
     private OAuthTokenResponseDto createTokenResponseForExistingMember(Member member, OAuthUserInfoDto userInfo) {

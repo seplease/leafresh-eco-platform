@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -20,10 +23,11 @@ import java.util.List;
 public class GroupChallengeParticipationReadService {
 
     private final GroupChallengeParticipationRecordQueryRepository groupChallengeParticipationRecordQueryRepository;
+    private final GroupChallengeVerificationQueryRepository groupChallengeVerificationQueryRepository;
 
     public GroupChallengeParticipationCountResponseDto getParticipationCounts(Long memberId) {
         GroupChallengeParticipationCountSummaryDto summary =
-                groupChallengeParticipationRecordQueryRepository.countParticipationByStatus(memberId, LocalDateTime.now());
+                groupChallengeParticipationRecordQueryRepository.countParticipationByStatus(memberId);
 
         return GroupChallengeParticipationCountResponseDto.from(summary);
     }
@@ -35,21 +39,35 @@ public class GroupChallengeParticipationReadService {
                 groupChallengeParticipationRecordQueryRepository
                         .findParticipatedByStatus(memberId, status, cursorId, cursorTimestamp, size + 1);
 
+        List<Long> challengeIds = dtos.stream()
+                .map(GroupChallengeParticipationDto::getId)
+                .toList();
+
+        Map<Long, List<GroupChallengeParticipationSummaryDto.AchievementRecordDto>> achievementRecordMap =
+                groupChallengeVerificationQueryRepository.findVerificationsGroupedByChallenge(challengeIds, memberId);
+
         CursorPaginationResult<GroupChallengeParticipationSummaryDto> page = CursorPaginationHelper.paginateWithTimestamp(
                 dtos,
                 size,
-                dto -> GroupChallengeParticipationSummaryDto.of(
-                        dto.getId(),
-                        dto.getTitle(),
-                        dto.getThumbnailUrl(),
-                        dto.getStartDate(),
-                        dto.getEndDate(),
-                        dto.getSuccess(),
-                        dto.getTotal(),
-                        dto.getCreatedAt()
-                ),
+                dto -> {
+                    OffsetDateTime startUtc = OffsetDateTime.of(dto.getStartDate(), ZoneOffset.UTC);
+                    OffsetDateTime endUtc = OffsetDateTime.of(dto.getEndDate(), ZoneOffset.UTC);
+                    OffsetDateTime createdUtc = OffsetDateTime.of(dto.getCreatedAt(), ZoneOffset.UTC);
+
+                    return GroupChallengeParticipationSummaryDto.of(
+                            dto.getId(),
+                            dto.getTitle(),
+                            dto.getThumbnailUrl(),
+                            startUtc,
+                            endUtc,
+                            dto.getSuccess(),
+                            dto.getTotal(),
+                            achievementRecordMap.getOrDefault(dto.getId(), List.of()),
+                            createdUtc
+                    );
+                },
                 GroupChallengeParticipationSummaryDto::id,
-                GroupChallengeParticipationSummaryDto::createdAt
+                dto -> dto.createdAt().toLocalDateTime()
         );
 
         return GroupChallengeParticipationListResponseDto.builder()

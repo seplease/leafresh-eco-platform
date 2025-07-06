@@ -2,6 +2,8 @@ package ktb.leafresh.backend.domain.store.product.domain.entity;
 
 import jakarta.persistence.*;
 import ktb.leafresh.backend.global.common.entity.BaseEntity;
+import ktb.leafresh.backend.global.exception.CustomException;
+import ktb.leafresh.backend.global.exception.ProductErrorCode;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -17,7 +19,7 @@ public class TimedealPolicy extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
@@ -25,11 +27,35 @@ public class TimedealPolicy extends BaseEntity {
     private Integer discountedPrice;
 
     @Column(nullable = false)
-    private Integer quantity;
+    private Integer discountedPercentage;
 
     @Column(nullable = false)
-    private LocalDateTime startAt;
+    private Integer stock;
 
     @Column(nullable = false)
-    private LocalDateTime endAt;
+    private LocalDateTime startTime;
+
+    @Column(nullable = false)
+    private LocalDateTime endTime;
+
+    public void updateTime(LocalDateTime startTime, LocalDateTime endTime) {
+        this.startTime = startTime;
+        this.endTime = endTime;
+    }
+
+    public void updatePriceAndPercent(Integer discountedPrice, Integer discountedPercentage) {
+        if (discountedPrice != null) this.discountedPrice = discountedPrice;
+        if (discountedPercentage != null) this.discountedPercentage = discountedPercentage;
+    }
+
+    public void updateStock(Integer stock) {
+        this.stock = stock;
+    }
+
+    public void decreaseStock(int quantity) {
+        if (this.stock < quantity) {
+            throw new CustomException(ProductErrorCode.OUT_OF_STOCK);
+        }
+        this.stock -= quantity;
+    }
 }

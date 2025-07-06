@@ -5,16 +5,20 @@ import ktb.leafresh.backend.domain.challenge.group.domain.service.GroupChallenge
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Builder
 public record GroupChallengeSummaryResponseDto(
         Long id,
         String title,
+        String category,
+        String description,
         String thumbnailUrl,
         int leafReward,
-        String startDate,
-        String endDate,
+        OffsetDateTime startDate,
+        OffsetDateTime endDate,
         int remainingDay,
         int currentParticipantCount,
         LocalDateTime createdAt
@@ -25,10 +29,12 @@ public record GroupChallengeSummaryResponseDto(
         return GroupChallengeSummaryResponseDto.builder()
                 .id(entity.getId())
                 .title(entity.getTitle())
+                .category(entity.getCategory().getName())
+                .description(entity.getDescription())
                 .thumbnailUrl(entity.getImageUrl())
                 .leafReward(entity.getLeafReward())
-                .startDate(entity.getStartDate().toLocalDate().toString())
-                .endDate(entity.getEndDate().toLocalDate().toString())
+                .startDate(entity.getStartDate().atOffset(ZoneOffset.UTC))
+                .endDate(entity.getEndDate().atOffset(ZoneOffset.UTC))
                 .currentParticipantCount(entity.getCurrentParticipantCount())
                 .createdAt(entity.getCreatedAt())
                 .remainingDay(remainingDay)

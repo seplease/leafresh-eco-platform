@@ -1,28 +1,37 @@
 spring:
   application:
     name: backend
-
   profiles:
-    active: ${spring_profiles_active}
-
+    active: ${SPRING_PROFILES_ACTIVE}
+  jackson:
+    time-zone: UTC
   security:
     basic:
       enabled: false
-
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
-
+        format_sql: false
   servlet:
     multipart:
       enabled: true
       max-file-size: 10MB
       max-request-size: 50MB
+
+management:
+  server:
+    port: 9102
+  endpoints:
+    web:
+      exposure:
+        include: "health,info,prometheus"
+  endpoint:
+    prometheus:
+      access: unrestricted
 
 springdoc:
   api-docs:
@@ -40,24 +49,36 @@ logging:
       springframework:
         security: DEBUG
       hibernate:
-        SQL: DEBUG
+        SQL: OFF
         type:
           descriptor:
             sql:
-              BasicBinder: TRACE
+              BasicBinder: OFF
     org.springframework.web.servlet.DispatcherServlet: DEBUG
     ktb.leafresh.backend: DEBUG
 
 jwt:
-  secret: ${jwt_secret}
+  secret: ${JWT_SECRET}
 
 kakao:
-  client-id: ${kakao_client_id}
-  redirect-uri: ${kakao_redirect_uri}
-  client-secret: ${kakao_client_secret}
+  client-id: ${KAKAO_CLIENT_ID}
+  client-secret: ${KAKAO_CLIENT_SECRET}
 
 cookie:
   secure: true
 
 ai-server:
-  base-url: ${ai_server_base_url}
+  text-base-url: ${TEXT_AI_SERVER_BASE_URL}
+  image-base-url: ${IMAGE_AI_SERVER_BASE_URL}
+  make-challenge-base-url: ${MAKE_CHALLENGE_AI_SERVER_BASE_URL}
+
+security:
+  allowed-origins:
+    - https://leafresh.app
+    - https://localhost:3000
+    - http://localhost:8080
+    - https://dev-leafresh.app
+    - https://be.dev-leafresh.app
+    - https://local.dev-leafresh.app:3000
+    - https://be.dev-leafresh.app
+    - https://springboot.dev-leafresh.app

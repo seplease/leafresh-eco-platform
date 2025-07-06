@@ -77,6 +77,8 @@ dependencies {
 
 	// Redis
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+	implementation 'org.redisson:redisson-spring-boot-starter:3.23.4'
 
 	// RedisBloom + Jedis
 	implementation 'com.github.RedisBloom:JRedisBloom:2.1.0'
@@ -88,6 +90,24 @@ dependencies {
 	// Google Cloud Storage
 	implementation 'com.google.protobuf:protobuf-java:3.25.1'
 	implementation group: 'com.google.cloud', name: 'google-cloud-storage', version: '2.40.1'
+
+	// GCP Pub/Sub
+	implementation 'com.google.cloud:google-cloud-pubsub:1.124.0'
+	implementation 'io.grpc:grpc-netty-shaded:1.62.2'
+	implementation 'io.grpc:grpc-alts:1.62.2'
+	implementation 'io.grpc:grpc-auth:1.62.2'
+	implementation 'io.grpc:grpc-protobuf:1.62.2'
+	implementation 'io.grpc:grpc-stub:1.62.2'
+
+	// ShedLock
+	implementation 'net.javacrumbs.shedlock:shedlock-spring:5.10.0'
+	implementation 'net.javacrumbs.shedlock:shedlock-provider-redis-spring:5.10.0'
+
+	// Micrometer Prometheus
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+
+	// p6spy for SQL profiling
+	implementation 'com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.8.0'
 }
 
 dependencyManagement {
@@ -111,6 +131,34 @@ jacocoTestReport {
 		xml.required = true
 		html.required = true
 		csv.required = false
+	}
+
+	classDirectories.setFrom(
+			files(classDirectories.files.collect {
+				fileTree(dir: it, exclude: [
+						'**/dto/**',
+						'**/enums/**',
+						'**/*Request*',
+						'**/*Response*'
+				])
+			})
+	)
+}
+
+jacocoTestCoverageVerification {
+	violationRules {
+		rule {
+			element = 'CLASS'
+			excludes = [
+					'**/dto/**',
+					'**/enums/**',
+					'**/*Request*',
+					'**/*Response*'
+			]
+			limit {
+				minimum = 0.80
+			}
+		}
 	}
 }
 

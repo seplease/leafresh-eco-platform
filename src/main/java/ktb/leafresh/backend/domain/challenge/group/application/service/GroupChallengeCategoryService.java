@@ -43,6 +43,7 @@ public class GroupChallengeCategoryService {
 
     private String getLabelFromCategoryName(String name) {
         return switch (name) {
+            case "ALL" -> "전체";
             case "ZERO_WASTE" -> "제로웨이스트";
             case "PLOGGING" -> "플로깅";
             case "CARBON_FOOTPRINT" -> "탄소 발자국";
