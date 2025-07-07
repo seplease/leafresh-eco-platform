@@ -32,8 +32,9 @@ public class ProductOrderCreateService {
     private final StockRedisLuaService stockRedisLuaService;
     private final PurchaseMessagePublisher purchaseMessagePublisher;
     private final ProductCacheLockFacade productCacheLockFacade;
+    private final PointService pointService;
 
-    @DistributedLock(key = "'product:stock:' + #productId", waitTime = 0, leaseTime = 3)
+    @DistributedLock(key = "'product:stock:' + #productId", waitTime = 3, leaseTime = 3)
     @Transactional
     public void create(Long memberId, Long productId, int quantity, String idempotencyKey) {
         // 1. 사용자 조회
@@ -51,17 +52,26 @@ public class ProductOrderCreateService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new CustomException(ProductErrorCode.PRODUCT_NOT_FOUND));
 
-        // 3-1. 캐시 없으면 Redisson Lock 기반으로 캐싱 (스탬피드 방지)
+        // 4. 보유 포인트 검증
+        int totalPrice = product.getPrice() * quantity;
+        if (!pointService.hasEnoughPoints(memberId, totalPrice)) {
+            log.warn("[포인트 부족] memberId={}, 보유포인트<{}", memberId, totalPrice);
+            throw new CustomException(PurchaseErrorCode.INSUFFICIENT_POINTS);
+        }
+
+        // 5. 캐시 없으면 Redisson Lock 기반으로 캐싱 (스탬피드 방지)
         productCacheLockFacade.cacheProductStock(productId, product.getStock());
 
-        // 4. Redis 재고 선점
+        // 5. Redis 재고 선점
         String redisKey = ProductCacheKeys.productStock(productId);
         Long result = stockRedisLuaService.decreaseStock(redisKey, quantity);
 
         if (result == -1) throw new CustomException(ProductErrorCode.PRODUCT_NOT_FOUND);
         if (result == -2) throw new CustomException(ProductErrorCode.OUT_OF_STOCK);
 
-        // 5. 메시지 큐 발행
+        productCacheLockFacade.updateSingleProductCache(product);
+
+        // 6. 메시지 큐 발행
         PurchaseCommand command = new PurchaseCommand(memberId, productId, null, quantity, idempotencyKey, LocalDateTime.now());
         purchaseMessagePublisher.publish(command);
 

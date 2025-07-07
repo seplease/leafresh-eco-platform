@@ -3,6 +3,7 @@ package ktb.leafresh.backend.domain.store.order.application.service;
 import ktb.leafresh.backend.domain.member.domain.entity.Member;
 import ktb.leafresh.backend.domain.member.infrastructure.repository.MemberRepository;
 import ktb.leafresh.backend.domain.store.order.application.dto.PurchaseCommand;
+import ktb.leafresh.backend.domain.store.order.application.facade.ProductCacheLockFacade;
 import ktb.leafresh.backend.domain.store.order.domain.entity.PurchaseIdempotencyKey;
 import ktb.leafresh.backend.domain.store.order.infrastructure.publisher.PurchaseMessagePublisher;
 import ktb.leafresh.backend.domain.store.order.infrastructure.repository.PurchaseIdempotencyKeyRepository;
@@ -30,8 +31,10 @@ public class TimedealOrderCreateService {
     private final PurchaseIdempotencyKeyRepository idempotencyRepository;
     private final StockRedisLuaService stockRedisLuaService;
     private final PurchaseMessagePublisher purchaseMessagePublisher;
+    private final ProductCacheLockFacade productCacheLockFacade;
+    private final PointService pointService;
 
-    @DistributedLock(key = "'timedeal:stock:' + #dealId", waitTime = 0, leaseTime = 3)
+    @DistributedLock(key = "'timedeal:stock:' + #dealId", waitTime = 3, leaseTime = 3)
     @Transactional
     public void create(Long memberId, Long dealId, int quantity, String idempotencyKey) {
         // 1. 사용자 조회
@@ -52,15 +55,24 @@ public class TimedealOrderCreateService {
         // 4. 구매 가능 시간 검증
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(policy.getStartTime()) || now.isAfter(policy.getEndTime())) {
-            throw new CustomException(ProductErrorCode.INVALID_STATUS, "현재는 구매할 수 없는 시간입니다.");
+            throw new CustomException(TimedealErrorCode.INVALID_STATUS);
         }
 
-        // 5. 재고 선점 (Redis Lua)
+        // 5. 보유 포인트 검증
+        int totalPrice = policy.getDiscountedPrice() * quantity;
+        if (!pointService.hasEnoughPoints(memberId, totalPrice)) {
+            log.warn("[타임딜 포인트 부족] memberId={}, totalPrice={}", memberId, totalPrice);
+            throw new CustomException(PurchaseErrorCode.INSUFFICIENT_POINTS);
+        }
+
+        // 6. 재고 선점 (Redis Lua)
         String redisKey = ProductCacheKeys.timedealStock(dealId);
         Long result = stockRedisLuaService.decreaseStock(redisKey, quantity);
 
         if (result == -1) throw new CustomException(ProductErrorCode.PRODUCT_NOT_FOUND);
         if (result == -2) throw new CustomException(ProductErrorCode.OUT_OF_STOCK);
+
+        productCacheLockFacade.updateSingleTimedealCache(policy);
 
         // 6. MQ 발행
         purchaseMessagePublisher.publish(new PurchaseCommand(

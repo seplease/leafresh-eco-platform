@@ -3,6 +3,7 @@ package ktb.leafresh.backend.domain.store.order.application.service;
 import ktb.leafresh.backend.domain.member.domain.entity.Member;
 import ktb.leafresh.backend.domain.member.infrastructure.repository.MemberRepository;
 import ktb.leafresh.backend.domain.store.order.application.dto.PurchaseCommand;
+import ktb.leafresh.backend.domain.store.order.application.facade.ProductCacheLockFacade;
 import ktb.leafresh.backend.domain.store.order.infrastructure.publisher.PurchaseMessagePublisher;
 import ktb.leafresh.backend.domain.store.order.infrastructure.repository.PurchaseIdempotencyKeyRepository;
 import ktb.leafresh.backend.domain.store.product.domain.entity.Product;
@@ -31,9 +32,6 @@ import static org.mockito.BDDMockito.*;
 @ExtendWith(MockitoExtension.class)
 class TimedealOrderCreateServiceTest {
 
-    @InjectMocks
-    private TimedealOrderCreateService service;
-
     @Mock
     private MemberRepository memberRepository;
 
@@ -48,6 +46,15 @@ class TimedealOrderCreateServiceTest {
 
     @Mock
     private PurchaseMessagePublisher purchaseMessagePublisher;
+
+    @Mock
+    private ProductCacheLockFacade productCacheLockFacade;
+
+    @Mock
+    private PointService pointService;
+
+    @InjectMocks
+    private TimedealOrderCreateService service;
 
     private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2025, 7, 1, 12, 0);
     private static MockedStatic<LocalDateTime> localDateTimeMock;
@@ -84,7 +91,9 @@ class TimedealOrderCreateServiceTest {
 
         given(memberRepository.findById(memberId)).willReturn(Optional.of(member));
         given(timedealPolicyRepository.findById(dealId)).willReturn(Optional.of(policy));
+        given(pointService.hasEnoughPoints(eq(memberId), anyInt())).willReturn(true);
         given(stockRedisLuaService.decreaseStock(anyString(), eq(quantity))).willReturn(1L);
+        willDoNothing().given(productCacheLockFacade).updateSingleTimedealCache(policy);
 
         // when & then
         assertThatCode(() -> service.create(memberId, dealId, quantity, idempotencyKey))
@@ -131,6 +140,7 @@ class TimedealOrderCreateServiceTest {
         given(memberRepository.findById(anyLong())).willReturn(Optional.of(member));
         given(idempotencyRepository.save(any())).willReturn(null);
         given(timedealPolicyRepository.findById(anyLong())).willReturn(Optional.of(policy));
+        given(pointService.hasEnoughPoints(eq(1L), anyInt())).willReturn(true);
         given(stockRedisLuaService.decreaseStock(anyString(), anyInt())).willReturn(-2L);
 
         // when & then
@@ -169,6 +179,7 @@ class TimedealOrderCreateServiceTest {
         given(memberRepository.findById(anyLong())).willReturn(Optional.of(member));
         given(idempotencyRepository.save(any())).willReturn(null);
         given(timedealPolicyRepository.findById(anyLong())).willReturn(Optional.of(policy));
+        given(pointService.hasEnoughPoints(eq(1L), anyInt())).willReturn(true);
         given(stockRedisLuaService.decreaseStock(anyString(), anyInt())).willReturn(-1L);
 
         // when & then
