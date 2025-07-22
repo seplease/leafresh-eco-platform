@@ -9,6 +9,7 @@ import ktb.leafresh.backend.global.exception.GlobalErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.net.URL;
@@ -17,8 +18,9 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
+@Profile("!eks")
 @RequiredArgsConstructor
-public class GcsService {
+public class GcsPresignedUrlProvider implements PresignedUrlProvider {
 
     private final Storage storage;
 
@@ -27,19 +29,13 @@ public class GcsService {
 
     private static final List<String> ALLOWED_CONTENT_TYPES = List.of("image/png", "image/jpeg", "image/jpg", "image/webp");
 
-    public PresignedUrlResponseDto generateV4UploadPresignedUrl(String fileName, String contentType) {
-        log.info("[PresignedUrl 요청] fileName={}, contentType={}", fileName, contentType);
-
-        if (!ALLOWED_CONTENT_TYPES.contains(contentType)) {
-            log.warn("지원하지 않는 Content-Type 요청됨: {}", contentType);
-            throw new CustomException(GlobalErrorCode.UNSUPPORTED_CONTENT_TYPE);
-        }
+    @Override
+    public PresignedUrlResponseDto generatePresignedUrl(String fileName, String contentType) {
+        validateContentType(contentType);
 
         BlobInfo blobInfo = BlobInfo.newBuilder(bucketName, fileName)
                 .setContentType(contentType)
                 .build();
-
-        log.debug("BlobInfo 생성 완료 - bucket={}, fileName={}", bucketName, fileName);
 
         URL uploadUrl = storage.signUrl(blobInfo, 3, TimeUnit.MINUTES,
                 Storage.SignUrlOption.httpMethod(HttpMethod.PUT),
@@ -48,8 +44,12 @@ public class GcsService {
 
         String fileUrl = String.format("https://storage.googleapis.com/%s/%s", bucketName, fileName);
 
-        log.info("Presigned URL 발급 완료 - uploadUrl={}, fileUrl={}", uploadUrl, fileUrl);
-
         return new PresignedUrlResponseDto(uploadUrl.toString(), fileUrl);
+    }
+
+    private void validateContentType(String contentType) {
+        if (!ALLOWED_CONTENT_TYPES.contains(contentType)) {
+            throw new CustomException(GlobalErrorCode.UNSUPPORTED_CONTENT_TYPE);
+        }
     }
 }
