@@ -53,3 +53,18 @@ leafresh-dev2.json
 
 ### AWS ###
 leafresh-v3-be-wren_accessKeys.csv
+Administrator_accessKeys.csv
+
+### Swagger/OpenAPI ###
+# 임시 파일들
+app.log
+openapi.json
+swagger-ui.tar.gz
+
+# 자동 생성되는 dist 폴더는 추적하지 않음 (GitHub Actions에서 생성)
+# dist/
+
+# Swagger UI 버전 파일과 index.html은 추적 (템플릿 역할)
+# swagger-ui.version
+# index.html
+# swagger.yaml (API 스펙은 추적)

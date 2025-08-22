@@ -1,0 +1,47 @@
+# Leafresh API Documentation
+# 이 파일은 GitHub Actions에 의해 자동으로 생성되고 업데이트됩니다.
+# Spring Boot 애플리케이션에서 생성된 OpenAPI 스펙이 여기에 저장됩니다.
+openapi: 3.0.3
+info:
+  title: Leafresh API Documentation
+  description: |
+    환경보호를 실천하는 사람들을 위한 챌린지 플랫폼 Leafresh의 백엔드 API 문서입니다.
+    
+    ## 🌱 Leafresh 소개
+    Leafresh는 개인과 그룹이 함께 지속가능한 생활습관을 만들어가며, 
+    AI 기술로 활동을 검증하고 보상을 제공하는 환경보호 챌린지 플랫폼입니다.
+    
+    ## 🔐 인증 방법
+    대부분의 API는 JWT 토큰 인증이 필요합니다:
+    ```
+    Authorization: Bearer YOUR_JWT_TOKEN
+    ```
+    
+    ## 🌍 서버 환경
+    - 개발: https://springboot.dev-leafresh.app
+    - 프로덕션: https://api.leafresh.app
+  version: '1.0.0'
+  contact:
+    name: Leafresh Team
+    url: https://leafresh.app
+servers:
+  - url: https://api.leafresh.app
+    description: 프로덕션 서버
+  - url: https://springboot.dev-leafresh.app
+    description: 개발 서버
+paths:
+  /health:
+    get:
+      summary: Health Check
+      description: 서버 상태를 확인합니다.
+      responses:
+        '200':
+          description: 서버가 정상 작동 중입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP

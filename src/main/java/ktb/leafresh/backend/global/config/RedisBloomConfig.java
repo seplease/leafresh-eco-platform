@@ -4,18 +4,20 @@ import io.rebloom.client.Client;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 @Configuration
+@Profile("!swagger")
 public class RedisBloomConfig {
 
-    @Value("${redis.bloom.host}")
-    private String redisBloomHost;
+  @Value("${redis.bloom.host}")
+  private String redisBloomHost;
 
-    @Value("${redis.bloom.port}")
-    private int redisBloomPort;
+  @Value("${redis.bloom.port}")
+  private int redisBloomPort;
 
-    @Bean
-    public Client bloomClient() {
-        return new Client(redisBloomHost, redisBloomPort);
-    }
+  @Bean
+  public Client bloomClient() {
+    return new Client(redisBloomHost, redisBloomPort);
+  }
 }

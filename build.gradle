@@ -44,7 +44,12 @@ dependencies {
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	// Database
 	runtimeOnly 'com.mysql:mysql-connector-j'
+	
+	// H2 for documentation generation
+	runtimeOnly 'com.h2database:h2'
+	
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -52,6 +57,8 @@ dependencies {
 	testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testImplementation 'org.mockito:mockito-inline:5.2.0'
+	// Mock 관련 - Swagger 프로파일에서 사용
+	implementation 'org.mockito:mockito-core:5.2.0'
 	testImplementation 'org.testcontainers:junit-jupiter'
 	testImplementation 'org.testcontainers:mysql'
 	testImplementation 'io.projectreactor:reactor-test'
@@ -177,4 +184,94 @@ tasks.named('test') {
 tasks.named('asciidoctor') {
 	inputs.dir snippetsDir
 	dependsOn test
+}
+
+// Spring Boot JAR 설정 확실히 하기
+jar {
+	enabled = false
+}
+
+bootJar {
+	enabled = true
+	archiveClassifier = ''
+	mainClass = 'ktb.leafresh.backend.BackendApplication'
+	
+	// Manifest에 명시적으로 Main-Class 추가
+	manifest {
+		attributes(
+			'Main-Class': 'org.springframework.boot.loader.launch.JarLauncher',
+			'Start-Class': 'ktb.leafresh.backend.BackendApplication',
+			'Implementation-Version': archiveVersion,
+			'Built-By': System.getProperty('user.name'),
+			'Build-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSSZ"),
+			'Created-By': "Gradle ${gradle.gradleVersion}",
+			'Build-Jdk': "${System.properties['java.version']} (${System.properties['java.vendor']} ${System.properties['java.vm.version']})",
+			'Multi-Release': 'true'
+		)
+	}
+	
+	// 실행 가능한 JAR인지 검증
+	doLast {
+		def jarFile = archiveFile.get().asFile
+		println "✅ Executable JAR created: ${jarFile.absolutePath}"
+		println "JAR size: ${jarFile.length()} bytes"
+		
+		// JAR 파일의 메니페스트 확인
+		def manifest = new java.util.jar.JarFile(jarFile).manifest
+		def mainClass = manifest.mainAttributes.getValue('Main-Class')
+		def startClass = manifest.mainAttributes.getValue('Start-Class')
+		
+		println "Main-Class: ${mainClass}"
+		println "Start-Class: ${startClass}"
+		
+		if (!mainClass || !startClass) {
+			throw new GradleException("JAR 파일에 Main-Class 또는 Start-Class가 없습니다!")
+		}
+	}
+}
+
+// Swagger JSON 생성을 위한 태스크
+task generateSwaggerDocs(type: JavaExec) {
+	group = 'documentation'
+	description = 'Generate Swagger/OpenAPI documentation'
+	
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'ktb.leafresh.backend.BackendApplication'
+	
+	systemProperty 'spring.profiles.active', 'swagger'
+	systemProperty 'server.port', '0'  // 랜덤 포트 사용
+	systemProperty 'spring.datasource.url', 'jdbc:h2:mem:testdb'
+	systemProperty 'spring.datasource.driver-class-name', 'org.h2.Driver'
+	systemProperty 'spring.jpa.hibernate.ddl-auto', 'create-drop'
+	systemProperty 'jwt.secret', 'dummy-secret-for-documentation-generation-only-minimum-32-characters'
+	systemProperty 'kakao.client-id', 'dummy'
+	systemProperty 'kakao.client-secret', 'dummy'
+	
+	doFirst {
+		mkdir "${buildDir}/swagger"
+	}
+}
+
+// 로컬에서 Swagger UI 실행하는 태스크
+task runSwagger(type: JavaExec) {
+	group = 'application'
+	description = 'Run application with Swagger UI for documentation'
+	
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'ktb.leafresh.backend.BackendApplication'
+	
+	systemProperty 'spring.profiles.active', 'swagger'
+	systemProperty 'server.port', '8080'
+	systemProperty 'spring.datasource.url', 'jdbc:h2:mem:testdb'
+	systemProperty 'spring.datasource.driver-class-name', 'org.h2.Driver'
+	systemProperty 'spring.jpa.hibernate.ddl-auto', 'create-drop'
+	systemProperty 'jwt.secret', 'dummy-secret-for-documentation-generation-only-minimum-32-characters'
+	systemProperty 'kakao.client-id', 'dummy'
+	systemProperty 'kakao.client-secret', 'dummy'
+	
+	doFirst {
+		println "Starting Swagger UI server..."
+		println "Access Swagger UI at: http://localhost:8080/swagger-ui.html"
+		println "API Docs JSON at: http://localhost:8080/v3/api-docs"
+	}
 }
