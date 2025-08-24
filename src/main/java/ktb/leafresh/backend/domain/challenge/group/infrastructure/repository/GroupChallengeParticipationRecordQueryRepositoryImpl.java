@@ -6,15 +6,12 @@ import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import ktb.leafresh.backend.domain.challenge.group.domain.entity.GroupChallenge;
-import ktb.leafresh.backend.domain.challenge.group.domain.entity.GroupChallengeParticipantRecord;
 import ktb.leafresh.backend.domain.challenge.group.domain.entity.QGroupChallenge;
 import ktb.leafresh.backend.domain.challenge.group.domain.entity.QGroupChallengeParticipantRecord;
 import ktb.leafresh.backend.domain.challenge.group.presentation.dto.query.GroupChallengeParticipationDto;
 import ktb.leafresh.backend.domain.challenge.group.presentation.dto.response.GroupChallengeParticipationCountSummaryDto;
 import ktb.leafresh.backend.domain.verification.domain.entity.QGroupChallengeVerification;
 import ktb.leafresh.backend.global.common.entity.enums.ChallengeStatus;
-import ktb.leafresh.backend.global.common.entity.enums.ParticipantStatus;
 import ktb.leafresh.backend.global.exception.CustomException;
 import ktb.leafresh.backend.global.exception.GlobalErrorCode;
 import ktb.leafresh.backend.global.util.pagination.CursorConditionUtils;
@@ -91,7 +88,7 @@ public class GroupChallengeParticipationRecordQueryRepositoryImpl
                     JPAExpressions.select(
                         Expressions.numberTemplate(
                             Long.class,
-                            "DATEDIFF({0}, {1}) + 1",
+                            "TIMESTAMPDIFF(DAY, {1}, {0}) + 1",
                             challenge.endDate,
                             record.createdAt)),
                     "total"),

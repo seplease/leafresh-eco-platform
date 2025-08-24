@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.util.List;
 
 @Repository
@@ -27,6 +26,8 @@ public class GroupChallengeCreatedQueryRepositoryImpl
 
     return queryFactory
         .selectFrom(gc)
+        .leftJoin(gc.member).fetchJoin()
+        .leftJoin(gc.category).fetchJoin()
         .where(
             gc.deletedAt.isNull(),
             gc.member.id.eq(memberId),
